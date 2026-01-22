@@ -1,0 +1,26 @@
+development:
+  clients:
+    default:
+      database: dynamic_pricing_development
+      hosts:
+        - localhost:27017
+      options:
+        server_selection_timeout: 5
+
+test:
+  clients:
+    default:
+      database: dynamic_pricing_test
+      hosts:
+        - localhost:27017
+      options:
+        read:
+          mode: :primary
+        max_pool_size: 1
+
+production:
+  clients:
+    default:
+      uri: <%= ENV['MONGODB_URI'] %>
+      options:
+        server_selection_timeout: 5
