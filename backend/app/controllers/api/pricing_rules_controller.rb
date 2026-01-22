@@ -15,7 +15,7 @@ class Api::PricingRulesController < ApplicationController
     end
   end
   def update
-    rule = PricingRule.find(params[:id])
+    rule = PricingRule.unscoped.find(params[:id])
     
     if rule.update(rule_params)
       render json: serialize_rule(rule)
@@ -24,7 +24,7 @@ class Api::PricingRulesController < ApplicationController
     end
   end
   def destroy
-    rule = PricingRule.find(params[:id])
+    rule = PricingRule.unscoped.find(params[:id])
     rule.destroy
     
     head :no_content
