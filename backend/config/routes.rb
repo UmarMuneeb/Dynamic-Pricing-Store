@@ -6,5 +6,6 @@ Rails.application.routes.draw do
   # API routes
   namespace :api do
     resources :products, only: [:index]
+    resources :pricing_rules
   end
 end
