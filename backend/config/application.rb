@@ -40,5 +40,15 @@ module Backend
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+    config.active_job.queue_adapter = :sidekiq
+
+    # Load environment variables
+    config.before_configuration do
+      require 'dotenv'
+      Dotenv.load
+    end
+
+    # Time zone
+    config.time_zone = 'UTC'
   end
 end

@@ -1,9 +1,7 @@
 development:
   clients:
     default:
-      database: dynamic_pricing_development
-      hosts:
-        - localhost:27017
+      uri: <%= ENV['MONGODB_URI'] || 'mongodb://localhost:27017/dynamic_pricing_development' %>
       options:
         server_selection_timeout: 5
 
