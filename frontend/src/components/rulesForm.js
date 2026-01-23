@@ -127,8 +127,9 @@ const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [], allRu
               Action Value
             </label>
             <input
-              type="text"
+              type="number"
               name="actionValue"
+              min="0"
               value={formData.actionValue}
               onChange={handleChange}
               placeholder={formData.actionType.includes('percentage') ? '10' : '500'}
