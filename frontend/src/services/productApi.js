@@ -11,6 +11,7 @@ const api = axios.create({
 
 export const productsAPI = {
   getAll: () => api.get('/products'),
+  getPricePreview: () => api.get('/price_preview'),
 };
 
 export default api;

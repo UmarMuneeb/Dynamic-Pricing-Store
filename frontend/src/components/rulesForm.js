@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import RulePreviewTable from './RulePreviewTable';
 
 const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [] }) => {
   const [formData, setFormData] = useState(initialRule || {
@@ -35,7 +36,7 @@ const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [] }) => 
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         {initialRule ? 'Edit Rule' : 'Create New Rule'}
       </h3>
-      
+
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -168,17 +169,20 @@ const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [] }) => 
         </div>
       </div>
 
+      {/* Preview of affected products */}
+      <RulePreviewTable products={products} rule={formData} />
+
       <div className="flex gap-3 mt-6">
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           className="px-5 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium"
         >
           {initialRule ? 'Update Rule' : 'Create Rule'}
         </button>
         {onCancel && (
-          <button 
-            type="button" 
-            className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors duration-200 font-medium" 
+          <button
+            type="button"
+            className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors duration-200 font-medium"
             onClick={onCancel}
           >
             Cancel
