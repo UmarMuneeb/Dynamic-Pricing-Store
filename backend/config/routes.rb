@@ -6,7 +6,9 @@ Rails.application.routes.draw do
   # API routes
   namespace :api do
     resources :products, only: [:index]
-    resources :pricing_rules
+    resources :pricing_rules do
+      post 'apply', on: :collection
+    end
     get 'price_preview', to: 'price_previews#index'
   end
 end

@@ -41,9 +41,13 @@ function App() {
   const handleCreateRule = async (ruleData) => {
     try {
       await rulesAPI.create(ruleData);
+      // Auto-apply rules if the new rule is active
+      if (ruleData.active) {
+        await rulesAPI.applyRules();
+      }
       await fetchData();
       setShowRuleForm(false);
-      alert('Rule created successfully!');
+      alert('Rule created and applied successfully!');
     } catch (err) {
       alert('Failed to create rule: ' + (err.response?.data?.errors?.join(', ') || err.message));
     }
@@ -58,10 +62,12 @@ function App() {
     try {
       console.log('Updating rule with ID:', editingRule.id);
       await rulesAPI.update(editingRule.id, ruleData);
+      // Auto-apply rules after update
+      await rulesAPI.applyRules();
       await fetchData();
       setEditingRule(null);
       setShowRuleForm(false);
-      alert('Rule updated successfully!');
+      alert('Rule updated and applied successfully!');
     } catch (err) {
       alert('Failed to update rule: ' + (err.response?.data?.errors?.join(', ') || err.message));
       console.error('Update error:', err);
@@ -107,6 +113,8 @@ function App() {
       };
       console.log('Updated rule data for toggle:', updatedRule);
       await rulesAPI.update(rule.id, updatedRule);
+      // Auto-apply rules after toggle
+      await rulesAPI.applyRules();
       await fetchData();
     } catch (err) {
       alert('Failed to toggle rule: ' + err.message);

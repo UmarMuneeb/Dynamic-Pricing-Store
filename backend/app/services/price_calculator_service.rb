@@ -21,6 +21,42 @@ class PriceCalculatorService
     result
   end
 
+  # Apply pricing rules to all products and update database
+  def self.apply_rules_to_all_products
+    products = Product.all.to_a
+    rules = PricingRule.where(active: true).order_by(priority: :asc).to_a
+    
+    affected_count = 0
+    bulk_operations = []
+    
+    products.each do |product|
+      new_price = calculate_price(product, rules)
+      
+      if product.currentPriceCents != new_price
+        # Prepare bulk update operation
+        bulk_operations << {
+          update_one: {
+            filter: { _id: product.id },
+            update: { '$set' => { currentPriceCents: new_price } }
+          }
+        }
+        affected_count += 1
+      end
+    end
+    
+    # Execute all updates in a single bulk operation
+    if bulk_operations.any?
+      Product.collection.bulk_write(bulk_operations, ordered: false)
+    end
+    
+    {
+      success: true,
+      affected_count: affected_count,
+      total_products: products.count,
+      timestamp: Time.now.utc
+    }
+  end
+
   private
 
   # Find the first rule that matches the product

@@ -29,6 +29,24 @@ class Api::PricingRulesController < ApplicationController
     
     head :no_content
   end
+
+  def apply
+    result = PriceCalculatorService.apply_rules_to_all_products
+    
+    render json: {
+      success: result[:success],
+      message: "Pricing rules applied successfully",
+      affectedProducts: result[:affected_count],
+      totalProducts: result[:total_products],
+      timestamp: result[:timestamp]
+    }
+  rescue => e
+    render json: {
+      success: false,
+      message: "Failed to apply pricing rules: #{e.message}"
+    }, status: :internal_server_error
+  end
+
   private
   def serialize_rule(rule)
     {
