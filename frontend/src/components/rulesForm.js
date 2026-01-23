@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import RulePreviewTable from './RulePreviewTable';
 
-const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [] }) => {
+const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [], allRules = [] }) => {
   const [formData, setFormData] = useState(initialRule || {
     name: '',
     conditionType: 'category_is',
@@ -170,7 +170,7 @@ const RuleForm = ({ onSubmit, onCancel, initialRule = null, products = [] }) => 
       </div>
 
       {/* Preview of affected products */}
-      <RulePreviewTable products={products} rule={formData} />
+      <RulePreviewTable products={products} rule={formData} allRules={allRules} />
 
       <div className="flex gap-3 mt-6">
         <button

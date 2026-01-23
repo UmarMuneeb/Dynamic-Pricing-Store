@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 
-const RulePreviewTable = ({ products, rule }) => {
+const RulePreviewTable = ({ products, rule, allRules = [] }) => {
     const formatPrice = (cents) => {
         return `$${(cents / 100).toFixed(2)}`;
     };
 
     const ruleMatches = (product, rule) => {
+        if (!rule || !rule.conditionType || rule.active === false) return false;
+
         switch (rule.conditionType) {
             case 'category_is':
                 return product.category === rule.conditionValue;
@@ -35,14 +37,55 @@ const RulePreviewTable = ({ products, rule }) => {
         }
     };
 
-    // Calculate which products are affected by this rule
+    // Calculate which products are affected by THIS SPECIFIC rule, 
+    // taking into account priority conflicts with other rules.
     const affectedProducts = useMemo(() => {
-        if (!rule || !rule.conditionType || !rule.conditionValue) {
+        if (!rule || !rule.conditionType || !rule.conditionValue || rule.active === false) {
             return [];
         }
 
-        return products.filter(product => ruleMatches(product, rule));
-    }, [products, rule]);
+        // 1. Prepare the full set of rules as they would exist if applied
+        let rulesToSimulate = [...allRules];
+
+        // If editing, replace the old version with current changes
+        if (rule.id) {
+            rulesToSimulate = rulesToSimulate.map(r => r.id === rule.id ? rule : r);
+        } else {
+            // If new, add it to the list
+            rulesToSimulate.push(rule);
+        }
+
+        // 2. Sort rules exactly like the backend (Priority ASC, then CreatedAt ASC)
+        const sortedRules = rulesToSimulate
+            .filter(r => r.active)
+            .sort((a, b) => {
+                const pDiff = (parseInt(a.priority) || 0) - (parseInt(b.priority) || 0);
+                if (pDiff !== 0) return pDiff;
+
+                // Tie-breaker: oldest wins. New rules (no createdAt) are treated as "now"
+                const dateA = a.createdAt ? new Date(a.createdAt) : new Date();
+                const dateB = b.createdAt ? new Date(b.createdAt) : new Date();
+                return dateA - dateB;
+            });
+
+        // 3. For each product, find the winning rule. 
+        // Only include in preview if the winning rule is the one being edited.
+        return products.filter(product => {
+            const winner = sortedRules.find(r => ruleMatches(product, r));
+
+            // Check if the current rule being edited is the winner
+            // We use a combination of id (if exists) or physical field comparison for new rules
+            if (!winner) return false;
+
+            if (rule.id) {
+                return winner.id === rule.id;
+            } else {
+                // For new rules, we compare by name/object since it doesn't have an ID yet
+                // The sort logic handles it as "latest"
+                return winner === rule;
+            }
+        });
+    }, [products, rule, allRules]);
 
     // Calculate proposed prices for affected products
     const productsWithProposedPrices = useMemo(() => {

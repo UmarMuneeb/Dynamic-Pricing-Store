@@ -440,6 +440,7 @@ function App() {
                     onCancel={handleCancelForm}
                     initialRule={editingRule}
                     products={products}
+                    allRules={rules}
                   />
                 ) : (
                   <RulesList
