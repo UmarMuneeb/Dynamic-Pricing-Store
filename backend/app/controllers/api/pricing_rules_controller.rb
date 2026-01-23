@@ -31,19 +31,17 @@ class Api::PricingRulesController < ApplicationController
   end
 
   def apply
-    result = PriceCalculatorService.apply_rules_to_all_products
+    ApplyPricingRulesJob.perform_async
     
     render json: {
-      success: result[:success],
-      message: "Pricing rules applied successfully",
-      affectedProducts: result[:affected_count],
-      totalProducts: result[:total_products],
-      timestamp: result[:timestamp]
+      success: true,
+      message: "Pricing rules are being applied in the background",
+      status: "processing"
     }
   rescue => e
     render json: {
       success: false,
-      message: "Failed to apply pricing rules: #{e.message}"
+      message: "Failed to enqueue pricing rules job: #{e.message}"
     }, status: :internal_server_error
   end
 
