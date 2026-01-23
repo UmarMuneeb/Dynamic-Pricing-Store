@@ -1,6 +1,6 @@
 class PriceCalculatorService
   def self.calculate_price(product, rules = nil)
-    rules ||= PricingRule.where(active: true).order_by(priority: :asc)
+    rules ||= PricingRule.where(active: true).order_by(priority: :asc, created_at: :asc)
     
     matching_rule = find_matching_rule(product, rules)
     
@@ -12,7 +12,7 @@ class PriceCalculatorService
   # Calculate prices for all products
   def self.calculate_all_prices(products = nil, rules = nil)
     products ||= Product.all
-    rules ||= PricingRule.where(active: true).order_by(priority: :asc)
+    rules ||= PricingRule.where(active: true).order_by(priority: :asc, created_at: :asc)
     
     result = {}
     products.each do |product|
@@ -28,7 +28,7 @@ class PriceCalculatorService
 
     begin
       products = Product.all.to_a
-      rules = PricingRule.where(active: true).order_by(priority: :asc).to_a
+      rules = PricingRule.where(active: true).order_by(priority: :asc, created_at: :asc).to_a
       
       affected_count = 0
       bulk_operations = []
@@ -109,11 +109,11 @@ class PriceCalculatorService
     
     case rule.actionType
     when 'increase_percentage'
-      increase = (basePriceCents * actionValue / 100).to_i
+      increase = (basePriceCents * actionValue / 100.0).round
       basePriceCents + increase
       
     when 'decrease_percentage'
-      decrease = (basePriceCents * actionValue / 100).to_i
+      decrease = (basePriceCents * actionValue / 100.0).round
       newPrice = basePriceCents - decrease
       [newPrice, 0].max # Don't go below 0
       

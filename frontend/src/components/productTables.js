@@ -1,6 +1,7 @@
 import React from 'react';
+import { calculatePrice } from '../utils/priceCalculator';
 
-const ProductsTable = ({ products }) => {
+const ProductsTable = ({ products, rules = [] }) => {
   const formatPrice = (cents) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
@@ -25,7 +26,7 @@ const ProductsTable = ({ products }) => {
           </span>
         </h2>
       </div>
-      
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -43,53 +44,73 @@ const ProductsTable = ({ products }) => {
                 Base Price
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Proposed Price
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Current Price
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {products.map((product) => (
-              <tr key={product._id} className="hover:bg-gray-50 transition-colors duration-150">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(product.category)}`}>
-                    {product.category}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <span className={`text-sm font-medium ${
-                      product.stockQuantity < 10 
-                        ? 'text-red-600' 
-                        : product.stockQuantity < 50 
-                        ? 'text-yellow-600' 
-                        : 'text-green-600'
-                    }`}>
-                      {product.stockQuantity}
+            {products.map((product) => {
+              const proposedPrice = calculatePrice(product, rules);
+              const priceDiff = proposedPrice - product.basePriceCents;
+
+              return (
+                <tr key={product._id} className="hover:bg-gray-50 transition-colors duration-150">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(product.category)}`}>
+                      {product.category}
                     </span>
-                    {product.stockQuantity < 10 && (
-                      <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded">
-                        Low
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span className={`text-sm font-medium ${product.stockQuantity < 10
+                        ? 'text-red-600'
+                        : product.stockQuantity < 50
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
+                        }`}>
+                        {product.stockQuantity}
                       </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatPrice(product.basePriceCents)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-semibold text-blue-600">
-                    {formatPrice(product.currentPriceCents)}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {product.stockQuantity < 10 && (
+                        <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded">
+                          Low
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatPrice(product.basePriceCents)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className={`text-sm font-bold ${proposedPrice > product.basePriceCents ? 'text-green-600' :
+                      proposedPrice < product.basePriceCents ? 'text-red-600' :
+                        'text-gray-900'
+                      }`}>
+                      {formatPrice(proposedPrice)}
+                      {priceDiff !== 0 && (
+                        <span className="ml-1 text-xs font-normal">
+                          ({priceDiff > 0 ? '+' : ''}{formatPrice(Math.abs(priceDiff))})
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-semibold text-blue-600 border-l-2 border-blue-500 pl-2">
+                      {formatPrice(product.currentPriceCents)}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
-      
+
       {products.length === 0 && (
         <div className="text-center py-12">
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

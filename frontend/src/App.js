@@ -428,7 +428,7 @@ function App() {
 
             {/* Products View */}
             {activeTab === 'products' && (
-              <ProductsTable products={products} />
+              <ProductsTable products={products} rules={rules} />
             )}
 
             {/* Rules View */}

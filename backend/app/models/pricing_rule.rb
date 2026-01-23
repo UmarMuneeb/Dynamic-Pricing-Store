@@ -28,6 +28,6 @@ class PricingRule
     greater_than: 0 
   }
 
-  # Default scope: active rules ordered by priority
-  default_scope -> { where(active: true).order_by(priority: :asc) }
+  # Default scope: active rules ordered by priority, then by creation date (tie-breaker)
+  default_scope -> { where(active: true).order_by(priority: :asc, created_at: :asc) }
 end

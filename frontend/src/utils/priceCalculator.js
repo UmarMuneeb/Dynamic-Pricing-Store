@@ -1,28 +1,13 @@
-export const calculatePrice = (product, rules) => {
-    const activeRules = rules
-        .filter(rule => rule.active)
-        .sort((a, b) => a.priority - b.priority);
-
-    const matchingRule = activeRules.find(rule => ruleMatches(product, rule));
-
-    if (!matchingRule) {
-        return product.base_price_cents;
-    }
-
-    // Apply the rule
-    return applyRule(product.base_price_cents, matchingRule);
-};
-
 const ruleMatches = (product, rule) => {
-    switch (rule.condition_type) {
+    switch (rule.conditionType) {
         case 'category_is':
-            return product.category === rule.condition_value;
+            return product.category === rule.conditionValue;
 
         case 'stock_less_than':
-            return product.stock_quantity < parseInt(rule.condition_value);
+            return product.stockQuantity < parseInt(rule.conditionValue);
 
         case 'stock_greater_than':
-            return product.stock_quantity > parseInt(rule.condition_value);
+            return product.stockQuantity > parseInt(rule.conditionValue);
 
         default:
             return false;
@@ -30,9 +15,9 @@ const ruleMatches = (product, rule) => {
 };
 
 const applyRule = (basePriceCents, rule) => {
-    const actionValue = parseFloat(rule.action_value);
+    const actionValue = parseFloat(rule.actionValue);
 
-    switch (rule.action_type) {
+    switch (rule.actionType) {
         case 'increase_percentage':
             return Math.round(basePriceCents * (1 + actionValue / 100));
 
@@ -40,19 +25,44 @@ const applyRule = (basePriceCents, rule) => {
             return Math.max(0, Math.round(basePriceCents * (1 - actionValue / 100)));
 
         case 'increase_fixed':
-            return basePriceCents + parseInt(rule.action_value);
+            return basePriceCents + parseInt(rule.actionValue);
 
         case 'decrease_fixed':
-            return Math.max(0, basePriceCents - parseInt(rule.action_value));
+            return Math.max(0, basePriceCents - parseInt(rule.actionValue));
 
         default:
             return basePriceCents;
     }
 };
 
+export const calculatePrice = (product, rules) => {
+    if (!product || !rules) return product?.basePriceCents || 0;
+
+    const activeRules = rules
+        .filter(rule => rule.active)
+        .sort((a, b) => {
+            // Primary sort by priority
+            if (a.priority !== b.priority) {
+                return a.priority - b.priority;
+            }
+            // Secondary sort by creation date (tie-breaker)
+            return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        });
+
+    const matchingRule = activeRules.find(rule => ruleMatches(product, rule));
+
+    if (!matchingRule) {
+        return product.basePriceCents;
+    }
+
+    // Apply the rule
+    return applyRule(product.basePriceCents, matchingRule);
+};
+
 export const calculateAllPrices = (products, rules) => {
+    if (!products) return [];
     return products.map(product => ({
         ...product,
-        proposed_price_cents: calculatePrice(product, rules),
+        proposedPriceCents: calculatePrice(product, rules),
     }));
 };
