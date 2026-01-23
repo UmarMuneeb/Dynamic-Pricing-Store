@@ -74,4 +74,7 @@ class Product
   def set_current_price
     self.currentPriceCents ||= basePriceCents
   end
+  def calculate_proposed_price
+    PriceCalculatorService.calculate_price(self)
+  end
 end

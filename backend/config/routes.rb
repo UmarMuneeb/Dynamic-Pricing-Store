@@ -7,5 +7,6 @@ Rails.application.routes.draw do
   namespace :api do
     resources :products, only: [:index]
     resources :pricing_rules
+    get 'price_preview', to: 'price_previews#index'
   end
 end
