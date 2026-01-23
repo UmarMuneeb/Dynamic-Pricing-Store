@@ -31,12 +31,20 @@ class Api::PricingRulesController < ApplicationController
   end
 
   def apply
-    ApplyPricingRulesJob.perform_async
+    # Create a pricing log entry before enqueuing the job
+    pricing_log = PricingLog.create!(
+      appliedAt: Time.now.utc,
+      status: :processing
+    )
+    
+    # Store the log_id in the job for tracking
+    ApplyPricingRulesJob.perform_async(pricing_log.id.to_s)
     
     render json: {
       success: true,
       message: "Pricing rules are being applied in the background",
-      status: "processing"
+      status: "processing",
+      logId: pricing_log.id.to_s
     }
   rescue => e
     render json: {

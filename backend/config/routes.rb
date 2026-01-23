@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     resources :pricing_rules do
       post 'apply', on: :collection
     end
+    resources :pricing_logs, only: [:index, :show]
     get 'price_preview', to: 'price_previews#index'
   end
 end

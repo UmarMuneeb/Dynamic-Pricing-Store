@@ -4,52 +4,96 @@ import { rulesAPI } from './services/rulesApi';
 import ProductsTable from './components/productTables';
 import RulesList from './components/rulesList';
 import RuleForm from './components/rulesForm';
+import LogsList from './components/logsList';
 import './App.css';
 
 function App() {
   const [products, setProducts] = useState([]);
   const [rules, setRules] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, products, rules
+  const [processingPrices, setProcessingPrices] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const fetchProducts = async () => {
+    try {
+      const response = await productsAPI.getAll();
+      setProducts(response.data);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      // Only set error if we don't have products yet
+      if (products.length === 0) {
+        setError('Failed to fetch products');
+      }
+    }
+  };
+
+  const fetchRules = async () => {
+    try {
+      const response = await rulesAPI.getAll();
+      setRules(response.data);
+      console.log('Fetched rules:', response.data.map(r => ({ id: r.id, name: r.name })));
+    } catch (err) {
+      console.error('Error fetching rules:', err);
+      if (rules.length === 0) {
+        setError('Failed to fetch rules');
+      }
+    }
+  };
+
+  const fetchLogs = async () => {
+    try {
+      const response = await rulesAPI.getLogs();
+      setLogs(response.data);
+    } catch (err) {
+      console.error('Error fetching logs:', err);
+      // Don't block app if logs fail, just log error
+    }
+  };
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [productsRes, rulesRes] = await Promise.all([
-        productsAPI.getAll(),
-        rulesAPI.getAll()
-      ]);
-      setProducts(productsRes.data);
-      setRules(rulesRes.data);
-      console.log('Fetched rules:', rulesRes.data.map(r => ({ id: r.id, name: r.name })));
+      await Promise.all([fetchProducts(), fetchRules(), fetchLogs()]);
       setError(null);
     } catch (err) {
       setError('Failed to fetch data. Make sure the backend is running.');
-      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleCreateRule = async (ruleData) => {
     try {
       await rulesAPI.create(ruleData);
       // Auto-apply rules if the new rule is active
       if (ruleData.active) {
-        await rulesAPI.applyRules();
+        setProcessingPrices(true);
+        const applyResponse = await rulesAPI.applyRules();
+        const logId = applyResponse.data.logId;
+
+        // Poll until job completes
+        await rulesAPI.pollUntilComplete(logId);
+        setProcessingPrices(false);
+        // Only refresh products to get new prices
+        await fetchProducts();
+
+        // Refresh logs to show the new run
+        await fetchLogs();
       }
-      await fetchData();
+      // Refresh rules list since we added one
+      await fetchRules();
       setShowRuleForm(false);
-      alert('Rule created and applied successfully!');
     } catch (err) {
-      alert('Failed to create rule: ' + (err.response?.data?.errors?.join(', ') || err.message));
+      setProcessingPrices(false);
+      console.error('Failed to create rule:', err);
     }
   };
 
@@ -62,15 +106,29 @@ function App() {
     try {
       console.log('Updating rule with ID:', editingRule.id);
       await rulesAPI.update(editingRule.id, ruleData);
+
       // Auto-apply rules after update
-      await rulesAPI.applyRules();
-      await fetchData();
+      setProcessingPrices(true);
+      const applyResponse = await rulesAPI.applyRules();
+      const logId = applyResponse.data.logId;
+
+      // Poll until job completes
+      await rulesAPI.pollUntilComplete(logId);
+      setProcessingPrices(false);
+
+      // Only refresh products to get new prices
+      await fetchProducts();
+
+      // Refresh logs to show the new run
+      await fetchLogs();
+
+      // Refresh rules to reflect changes
+      await fetchRules();
       setEditingRule(null);
       setShowRuleForm(false);
-      alert('Rule updated and applied successfully!');
     } catch (err) {
-      alert('Failed to update rule: ' + (err.response?.data?.errors?.join(', ') || err.message));
-      console.error('Update error:', err);
+      setProcessingPrices(false);
+      console.error('Failed to update rule:', err);
     }
   };
 
@@ -79,27 +137,36 @@ function App() {
       return;
     }
     if (!ruleId) {
-      alert('Error: Rule ID is missing');
       console.error('Delete attempted with no ruleId');
       return;
     }
     try {
       console.log('Deleting rule with ID:', ruleId);
       await rulesAPI.delete(ruleId);
-      await fetchData();
-      alert('Rule deleted successfully!');
+
+      // Refresh rules list
+      await fetchRules();
+
+      // Refresh products as prices might change
+      // Note: we might want to auto-apply here too, but for now just fetch
+      await fetchProducts();
     } catch (err) {
-      alert('Failed to delete rule: ' + err.message);
-      console.error('Delete error:', err);
+      console.error('Failed to delete rule:', err);
     }
   };
 
   const handleToggleRule = async (rule) => {
     if (!rule || !rule.id) {
-      alert('Error: Rule or Rule ID is missing');
       console.error('Toggle attempted with invalid rule:', rule);
       return;
     }
+
+    // Optimistic update: Update local state immediately
+    const previousRules = [...rules];
+    setRules(rules.map(r =>
+      r.id === rule.id ? { ...r, active: !r.active } : r
+    ));
+
     try {
       console.log('Toggling rule with ID:', rule.id, 'Current active:', rule.active);
       const updatedRule = {
@@ -111,14 +178,28 @@ function App() {
         priority: rule.priority,
         active: !rule.active
       };
-      console.log('Updated rule data for toggle:', updatedRule);
+
       await rulesAPI.update(rule.id, updatedRule);
+
       // Auto-apply rules after toggle
-      await rulesAPI.applyRules();
-      await fetchData();
+      setProcessingPrices(true);
+      const applyResponse = await rulesAPI.applyRules();
+      const logId = applyResponse.data.logId;
+
+      // Poll until job completes
+      await rulesAPI.pollUntilComplete(logId);
+      setProcessingPrices(false);
+
+      // Only refresh products - rules are already consistent due to optimistic update
+      await fetchProducts();
+
+      // Refresh logs to show the new run
+      await fetchLogs();
     } catch (err) {
-      alert('Failed to toggle rule: ' + err.message);
-      console.error('Toggle error:', err, 'Rule:', rule);
+      // Revert local state on error
+      setRules(previousRules);
+      setProcessingPrices(false);
+      console.error('Failed to toggle rule:', err);
     }
   };
 
@@ -210,11 +291,32 @@ function App() {
                 Pricing Rules ({rules.length})
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${activeTab === 'logs'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                History Logs
+              </div>
+            </button>
           </nav>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {processingPrices && (
+          <div className="fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            <span className="font-medium">Updating prices...</span>
+          </div>
+        )}
+
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
@@ -332,22 +434,27 @@ function App() {
             {/* Rules View */}
             {activeTab === 'rules' && (
               <div className="space-y-6">
-                {showRuleForm && (
+                {showRuleForm ? (
                   <RuleForm
                     onSubmit={editingRule ? handleUpdateRule : handleCreateRule}
                     onCancel={handleCancelForm}
                     initialRule={editingRule}
                     products={products}
                   />
+                ) : (
+                  <RulesList
+                    rules={rules}
+                    onEdit={handleEditRule}
+                    onDelete={handleDeleteRule}
+                    onToggle={handleToggleRule}
+                  />
                 )}
-
-                <RulesList
-                  rules={rules}
-                  onEdit={handleEditRule}
-                  onDelete={handleDeleteRule}
-                  onToggle={handleToggleRule}
-                />
               </div>
+            )}
+
+            {/* Logs View */}
+            {activeTab === 'logs' && (
+              <LogsList logs={logs} />
             )}
           </>
         )}
